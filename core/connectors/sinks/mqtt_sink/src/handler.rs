@@ -18,10 +18,7 @@
 use flowsdk::mqtt_client::client::{
     ConnectionResult, PingResult, PublishResult, SubscribeResult, UnsubscribeResult,
 };
-use flowsdk::mqtt_client::{
-    MqttClientError,
-    TokioMqttEventHandler,
-};
+use flowsdk::mqtt_client::{MqttClientError, TokioMqttEventHandler};
 use flowsdk::mqtt_serde::mqttv5::publishv5::MqttPublish;
 use std::sync::{Arc, Mutex};
 
@@ -165,5 +162,40 @@ impl TokioMqttEventHandler for IggyMqtt5Handler {
 
     async fn on_pending_operations_cleared(&mut self) {
         println!("[{}] Pending operations cleared", self.name);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn given_new_handler_should_start_with_empty_context() {
+        let context = Arc::new(Mutex::new(None::<u16>));
+        let _handler = IggyMqtt5Handler::new("test", context.clone());
+
+        assert!(context.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn given_update_packet_id_should_store_it_in_context() {
+        let context = Arc::new(Mutex::new(None::<u16>));
+        let mut handler = IggyMqtt5Handler::new("test", context.clone());
+
+        handler.update_last_acked_packet_id(42);
+
+        assert_eq!(*context.lock().unwrap(), Some(42));
+    }
+
+    #[test]
+    fn given_multiple_updates_should_keep_latest_packet_id() {
+        let context = Arc::new(Mutex::new(None::<u16>));
+        let mut handler = IggyMqtt5Handler::new("test", context.clone());
+
+        handler.update_last_acked_packet_id(1);
+        handler.update_last_acked_packet_id(7);
+        handler.update_last_acked_packet_id(3);
+
+        assert_eq!(*context.lock().unwrap(), Some(3));
     }
 }
